@@ -25,7 +25,6 @@ export class OrderService {
     });
 
     const order = this.repository.create({ products, total: totalPrice });
-    console.log(order);
 
     return this.repository.save(order);
   }

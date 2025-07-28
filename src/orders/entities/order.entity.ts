@@ -13,7 +13,7 @@ export class Order extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToMany(() => Product)
+  @ManyToMany(() => Product, (product) => product.orders)
   @JoinTable()
   products: Product[];
 

@@ -22,7 +22,6 @@ export class Product extends BaseEntity {
   @Column('decimal', { precision: 10, scale: 2 })
   price: number;
 
-  @ManyToMany(() => Order)
-  @JoinTable()
+  @ManyToMany(() => Order, (order) => order.products)
   orders: Order[];
 }

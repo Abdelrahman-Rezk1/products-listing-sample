@@ -62,7 +62,6 @@ export class ProductsService {
       where: { id: payload.id },
       relations: ['orders'],
     });
-    console.log(product);
 
     if (product?.orders.length)
       throw new MethodNotAllowedException('This product is assigned to orders');

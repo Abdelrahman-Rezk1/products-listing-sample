@@ -1,9 +1,11 @@
+import { Order } from '../../orders/entities/order.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
   BaseEntity,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 
 @Entity('products')
@@ -19,4 +21,8 @@ export class Product extends BaseEntity {
 
   @Column('decimal', { precision: 10, scale: 2 })
   price: number;
+
+  @ManyToMany(() => Order)
+  @JoinTable()
+  orders: Order[];
 }

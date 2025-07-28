@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  MethodNotAllowedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Product } from './entities/product.entity';
-import { DeleteResult, Repository, UpdateResult } from 'typeorm';
+import { DeleteResult, In, Repository, UpdateResult } from 'typeorm';
 import { CreateProductDTO } from './dtos/create-product.dto';
 import { UpdateProductDTO } from './dtos/update-product.dto';
 import { IdDTO } from 'src/common/dto/id.dto';
@@ -36,6 +40,17 @@ export class ProductsService {
     };
   }
 
+  async readByIdList(idList: string[]) {
+    const products = await this.productsRepository.find({
+      where: { id: In(idList) },
+    });
+
+    if (products.length !== idList.length)
+      throw new NotFoundException('Some products not found');
+
+    return products;
+  }
+
   async readOne(payload: IdDTO): Promise<Product | null> {
     return await this.productsRepository.findOne({
       where: { id: payload.id },
@@ -43,6 +58,14 @@ export class ProductsService {
   }
 
   async delete(payload: IdDTO): Promise<DeleteResult> {
+    const product = await this.productsRepository.findOne({
+      where: { id: payload.id },
+      relations: ['orders'],
+    });
+    console.log(product);
+
+    if (product?.orders.length)
+      throw new MethodNotAllowedException('This product is assigned to orders');
     return await this.productsRepository.delete(payload.id);
   }
 }

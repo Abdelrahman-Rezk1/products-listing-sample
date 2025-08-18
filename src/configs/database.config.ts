@@ -1,7 +1,7 @@
 import { registerAs } from '@nestjs/config';
 
 export interface DbConfig {
-  type: string;
+  type: 'postgres' | 'mysql';
   host: string;
   username: string;
   password: string;
@@ -12,8 +12,7 @@ export interface DbConfig {
 export default registerAs(
   'db',
   (): DbConfig => ({
-    // Non-null assertions are safe because Joi will validate at bootstrap
-    type: process.env.DB_TYPE!,
+    type: (process.env.DB_TYPE as DbConfig['type'])!,
     host: process.env.DB_HOST!,
     username: process.env.DB_USER!,
     password: process.env.DB_PASSWORD!,

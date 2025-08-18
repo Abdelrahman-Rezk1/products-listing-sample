@@ -1,98 +1,197 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Zoho Products Demo (NestJS)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A minimal, production‑minded demo that shows how to:
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+- Authorize with **Zoho OAuth 2.0** and store tokens in cookies/DB
+- Perform **CRUD on Zoho CRM Products** via the Records API
+- Mirror Zoho records into a local database using **TypeORM**
+- Expose clean REST endpoints with **Swagger** docs
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 1) Architecture Overview
 
-## Project setup
-
-```bash
-$ pnpm install
+```
+client (Swagger UI / browser)
+    ↕ cookies (zoho_access_token, zoho_api_domain)
+NestJS
+├─ AuthModule
+│  ├─ AuthService (OAuth authorize, token exchange/refresh)
+│  └─ AuthController (/auth/zoho, /auth/zoho/redirect, /auth/zoho/callback)
+├─ ProductsModule
+│  ├─ ProductsService (calls Zoho using access token; mirrors to DB)
+│  └─ ProductsController (extracts cookies → passes Zoho ctx)
+├─ Config (Joi-validated env; zoho.config.ts, db.config.ts)
+└─ TypeORM (Postgres by default; synchronize=true for dev)
 ```
 
-## Compile and run the project
+**Token model**
+
+- `zoho_access_token` → **HttpOnly** cookie (short‑lived)
+- `zoho_api_domain` → HttpOnly cookie (so requests target the correct Zoho DC)
+- `refresh_token` → **server-side only** (DB), not in cookies
+
+> In dev, we simplify by setting only `zoho_access_token` and `zoho_api_domain` cookies; you can extend the callback to persist `refresh_token`.
+
+---
+
+## 2) Prerequisites
+
+- **Node.js 18+** (native `fetch`)
+- **PostgreSQL** (or adjust `DB_TYPE`/options for MySQL)
+- A **Zoho account** with access to Zoho CRM and permission to create an OAuth client
+
+---
+
+## 3) Environment Variables (.env)
+
+Create a `.env` file in the project root. All vars are validated at startup via **Joi**.
 
 ```bash
-# development
-$ pnpm run start
+# --- Zoho ---
+ZOHOSA_ACCOUNTS=https://accounts.zoho.sa           # Your Accounts domain (KSA example)
+ZOHO_CLIENT_ID=your_client_id
+ZOHO_CLIENT_SECRET=your_client_secret
+ZOHO_REDIRECT_URI=http://localhost:3000/auth/zoho/callback
+ZOHO_SCOPES=ZohoCRM.modules.products.ALL,ZohoCRM.settings.fields.READ
 
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+# --- Database (Postgres example) ---
+DB_TYPE=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_DATABASE=products
+# Optional: DB_SYNC=true | false (defaults true in db.config.ts)
 ```
 
-## Run tests
+### Multi‑DC note
+
+If you serve users in multiple Zoho data centers (US/EU/IN/SA/etc.), always use the `api_domain` returned by Zoho for API calls and consider starting auth on `https://accounts.zoho.com` to discover the user’s DC. This demo assumes `.sa` for simplicity.
+
+---
+
+## 4) Install & Run
 
 ```bash
-# unit tests
-$ pnpm run test
+# 1) Install deps
+pnpm install
 
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+# 2) Run in dev (http://localhost:3000)
+pnpm run start:dev
 ```
 
-## Deployment
+In `main.ts`, ensure **cookie‑parser** is enabled:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+```ts
+import * as cookieParser from 'cookie-parser';
+app.use(cookieParser());
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Swagger UI is typically served at **`/api`** (e.g., `http://localhost:3000/api`).
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## 5) Configure Zoho OAuth Client
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+1. Open Zoho **API Console** (region‑specific, e.g., `api-console.zoho.sa`).
+2. **Add Client** → type **Server‑based**.
+3. Set **Authorized Redirect URI** to your value (e.g., `http://localhost:3000/auth/zoho/callback`).
+4. Copy **Client ID** and **Client Secret** into your `.env`.
+5. Use scopes from the `.env` above (Products CRUD + fields).
 
-## Support
+> In dev you can also register `http://localhost:3000` origins/URIs.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+---
 
-## Stay in touch
+## 6) OAuth Flow (Swagger‑friendly)
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Because Swagger cannot follow cross‑origin redirects, the demo provides two ways to begin auth:
 
-## License
+### A) Swagger‑friendly (returns URL as JSON)
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+1. Open **GET `/auth/zoho`** in Swagger.
+2. Provide a `state` (e.g., `dev-state`).
+3. **Execute** → copy the returned `url`.
+4. Paste the URL in a **new browser tab** and complete Zoho login/consent.
+5. Zoho redirects to `ZOHO_REDIRECT_URI` (your `/auth/zoho/callback`), which sets:
+   - `zoho_access_token` (HttpOnly cookie)
+   - optionally `zoho_api_domain` (HttpOnly cookie)
+
+### B) Direct browser redirect
+
+- Navigate to **`/auth/zoho/redirect?state=dev-state`** in your browser to jump straight to Zoho (not recommended from Swagger).
+
+> Security: for production, re‑enable CSRF‐safe `state` cookie validation. The simplified dev flow treats `state` as a normal query param.
+
+---
+
+## 7) Products API (local mirror → Zoho)
+
+The controller extracts cookies and passes a **Zoho auth context** to the service. The service:
+
+- Calls Zoho **/crm/v8/Products** endpoints with `Authorization: Zoho-oauthtoken <access>`
+- Mirrors the created/updated product to the local DB (stores `zohoId`)
+
+### Endpoints
+
+- `POST /products` → Create in Zoho, then save locally
+- `PATCH /products/:id` → Update in Zoho (if linked), then update locally
+- `GET /products/:id` → Read local product by UUID
+- `GET /products` → Paginated local list
+- `DELETE /products/:id` → Delete from Zoho (if linked), then remove locally
+
+### DTOs & Mapping
+
+- Local create/update DTOs: `CreateProductDTO`, `UpdateProductDTO`
+- Zoho payload DTOs: `ZohoProductRecordDto`, `ZohoProductPayloadDto`
+- Mapping (example): `name → Product_Name`, `unitPrice → Unit_Price`, `qtyInStock → Qty_in_Stock`, etc.
+
+---
+
+## 8) Running the Demo (Quick Path)
+
+1. **Fill `.env`** (Zoho + DB)
+2. **Start DB** (e.g., Postgres) and ensure the credentials match your `.env`.
+3. `npm run start:dev`
+4. Open **Swagger** → **GET `/auth/zoho`** with `state=dev-state` → copy URL → open in a new tab → approve.
+5. After callback sets cookies, call:
+   - **POST `/products`** with body:
+
+     ```json
+     {
+       "name": "Wireless Keyboard",
+       "description": "Slim 2.4GHz wireless keyboard",
+       "unitPrice": 49.99,
+       "sku": "KB-123",
+       "qtyInStock": 100
+     }
+     ```
+
+   - Observe created record mirrored with a `zohoId`.
+
+> If you test with a REST client instead of a browser, include the cookies manually:
+> `Cookie: zoho_access_token=...; zoho_api_domain=...`
+
+---
+
+## 9) Troubleshooting
+
+- **`invalid_redirect_uri`** → Ensure the redirect URI in the console **exactly** matches `.env` and the authorize request.
+- **Swagger shows “Failed to fetch”** on `/auth/zoho/redirect` → Use the Swagger‑friendly `GET /auth/zoho` flow.
+- **401 from Zoho** → Access token expired or missing cookie. Re‑run the OAuth step. In prod, store `refresh_token` and implement refresh.
+- **Wrong API base** → Always use the **`api_domain`** returned by Zoho (cookie `zoho_api_domain`).
+- **DB schema** → The demo sets `synchronize=true` for convenience. For prod, turn off and use migrations.
+
+---
+
+## 10) Production Checklist
+
+- [ ] Use HTTPS; set cookies with `Secure`, appropriate `SameSite`.
+- [ ] Validate **CSRF state** with a server‑side cookie or signed state (JWT), not a bare query string.
+- [ ] Persist **refresh_token** per user/tenant and implement refresh on 401.
+- [ ] Handle Zoho rate limits and 429/5xx retries with backoff.
+- [ ] Replace `synchronize=true` with migrations; restrict DB credentials.
+- [ ] Add request logging and structured error handling for Zoho API failures.
+
+---

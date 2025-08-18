@@ -1,4 +1,3 @@
-// database.config.ts
 export default () => ({
   type: process.env.DB_TYPE,
   host: process.env.DB_HOST,

@@ -12,7 +12,8 @@ export interface ZohoConfig {
 export default registerAs(
   'zoho',
   (): ZohoConfig => ({
-    accounts: process.env.ZOHOSA_ACCOUNTS!, // non-null because Joi validated
+    // non-null because Joi validated
+    accounts: process.env.ZOHOSA_ACCOUNTS!,
     clientID: process.env.ZOHO_CLIENT_ID!,
     secret: process.env.ZOHO_CLIENT_SECRET!,
     redirectURI: process.env.ZOHO_REDIRECT_URI!,

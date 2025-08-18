@@ -21,7 +21,7 @@ export class OrderService {
 
     let totalPrice = 0;
     products.map((p) => {
-      totalPrice += Number(p.price);
+      totalPrice += Number(p.unitPrice);
     });
 
     const order = this.repository.create({ products, total: totalPrice });

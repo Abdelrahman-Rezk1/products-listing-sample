@@ -34,7 +34,6 @@ import { envValidationSchema } from './configs/vlidation-schema';
         autoLoadEntities: true,
       }),
     }),
-
     AuthModule,
     OrdersModule,
     ProductsModule,

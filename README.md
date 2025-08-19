@@ -1,4 +1,4 @@
-# Zoho Products Demo (NestJS)
+# Zoho Products Demo (NestJS) + Algolia Search
 
 A minimal, production‑minded demo that shows how to:
 
@@ -6,6 +6,17 @@ A minimal, production‑minded demo that shows how to:
 - Perform **CRUD on Zoho CRM Products** via the Records API
 - Mirror Zoho records into a local database using **TypeORM**
 - Expose clean REST endpoints with **Swagger** docs
+- **NEW:** Full‑text product search with **Algolia v5** (indexing on CRUD, faceting, pagination, optional AI features)
+
+---
+
+## 0) What’s New (Algolia)
+
+- **AlgoliaModule**: global module that provides an Algolia **v5 client** and centralized **index names** via DI tokens.
+- **ProductsIndexer**: maps the `Product` entity → Algolia record; supports `configure`, `upsert`, `remove`, and `search`. Uses v5 methods (`saveObject`, `searchSingleIndex`, `setSettings({ indexSettings })`).
+- **ProductsService**: calls indexer on **create/update/delete** (best‑effort; DB+Zoho remain source of truth).
+- **ProductsController**: `GET /products/search` with **`q`**, **pagination** (`page`, `limit`).
+- **Index settings**: `searchableAttributes` (`name`, `manufacturer`, `sku`, `code`, `description`) and `attributesForFaceting` (e.g., `inStock`, `filterOnly(sku)`).
 
 ---
 
@@ -19,17 +30,19 @@ NestJS
 │  ├─ AuthService (OAuth authorize, token exchange/refresh)
 │  └─ AuthController (/auth/zoho, /auth/zoho/redirect, /auth/zoho/callback)
 ├─ ProductsModule
-│  ├─ ProductsService (calls Zoho using access token; mirrors to DB)
-│  └─ ProductsController (extracts cookies → passes Zoho ctx)
-├─ Config (Joi-validated env; zoho.config.ts, db.config.ts)
-└─ TypeORM (Postgres by default; synchronize=true for dev)
+│  ├─ ProductsService (Zoho CRUD + local mirror + Algolia sync)
+│  ├─ ProductsIndexer (Algolia v5: configure/upsert/remove/search)
+│  └─ ProductsController (extract cookies → pass Zoho ctx; adds /products/search)
+├─ Algolia (infra)
+│  └─ AlgoliaModule (provides Algolia client + index names)
+└─ Config (Joi‑validated env; zoho.config.ts, algolia.config.ts, db.config.ts)
 ```
 
 **Token model**
 
 - `zoho_access_token` → **HttpOnly** cookie (short‑lived)
 - `zoho_api_domain` → HttpOnly cookie (so requests target the correct Zoho DC)
-- `refresh_token` → **server-side only** (DB), not in cookies
+- `refresh_token` → **server‑side only** (DB), not in cookies
 
 > In dev, we simplify by setting only `zoho_access_token` and `zoho_api_domain` cookies; you can extend the callback to persist `refresh_token`.
 
@@ -40,6 +53,7 @@ NestJS
 - **Node.js 18+** (native `fetch`)
 - **PostgreSQL** (or adjust `DB_TYPE`/options for MySQL)
 - A **Zoho account** with access to Zoho CRM and permission to create an OAuth client
+- An **Algolia application** (App ID + **Write** key; **Search** key optional for server calls)
 
 ---
 
@@ -49,7 +63,7 @@ Create a `.env` file in the project root. All vars are validated at startup via 
 
 ```bash
 # --- Zoho ---
-ZOHOSA_ACCOUNTS=https://accounts.zoho.sa           # Your Accounts domain (KSA example)
+ZOHOSA_ACCOUNTS=https://accounts.zoho.sa
 ZOHO_CLIENT_ID=your_client_id
 ZOHO_CLIENT_SECRET=your_client_secret
 ZOHO_REDIRECT_URI=http://localhost:3000/auth/zoho/callback
@@ -62,12 +76,18 @@ DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_DATABASE=products
-# Optional: DB_SYNC=true | false (defaults true in db.config.ts)
+
+# --- Algolia ---
+ALGOLIA_APP_ID=YourAppID
+ALGOLIA_APP_NAME=shop               # used for index naming
+ALGOLIA_WRITE_KEY=xxxxx_write       # server‑side only
+ALGOLIA_SEARCH_KEY=xxxxx_search     # optional; server search or Recommend API
+# Optional explicit names; otherwise auto‑named: <env>_<app>_<domain>_<v>
+ALGOLIA_PRODUCTS_INDEX=dev_shop_products_v1
+ALGOLIA_ORDERS_INDEX=dev_shop_orders_v1
 ```
 
-### Multi‑DC note
-
-If you serve users in multiple Zoho data centers (US/EU/IN/SA/etc.), always use the `api_domain` returned by Zoho for API calls and consider starting auth on `https://accounts.zoho.com` to discover the user’s DC. This demo assumes `.sa` for simplicity.
+> **Validation tip:** use `Joi.string().required().min(1)` (or `.not().empty()`) for env vars to avoid empty values.
 
 ---
 
@@ -81,117 +101,135 @@ pnpm install
 pnpm run start:dev
 ```
 
-In `main.ts`, ensure **cookie‑parser** is enabled:
+In `main.ts`, make sure **cookie‑parser** is enabled:
 
 ```ts
 import * as cookieParser from 'cookie-parser';
 app.use(cookieParser());
 ```
 
-Swagger UI is typically served at **`/api`** (e.g., `http://localhost:3000/api`).
+Swagger UI is typically served at **`/api`**.
 
 ---
 
 ## 5) Configure Zoho OAuth Client
 
-1. Open Zoho **API Console** (region‑specific, e.g., `api-console.zoho.sa`).
+1. Open Zoho **API Console** (region‑specific).
 2. **Add Client** → type **Server‑based**.
-3. Set **Authorized Redirect URI** to your value (e.g., `http://localhost:3000/auth/zoho/callback`).
+3. Set **Authorized Redirect URI** to `ZOHO_REDIRECT_URI`.
 4. Copy **Client ID** and **Client Secret** into your `.env`.
-5. Use scopes from the `.env` above (Products CRUD + fields).
+5. Use the scopes from the `.env`.
 
-> In dev you can also register `http://localhost:3000` origins/URIs.
-
----
-
-## 6) OAuth Flow (Swagger‑friendly)
-
-Because Swagger cannot follow cross‑origin redirects, the demo provides two ways to begin auth:
-
-### A) Swagger‑friendly (returns URL as JSON)
-
-1. Open **GET `/auth/zoho`** in Swagger.
-2. Provide a `state` (e.g., `dev-state`).
-3. **Execute** → copy the returned `url`.
-4. Paste the URL in a **new browser tab** and complete Zoho login/consent.
-5. Zoho redirects to `ZOHO_REDIRECT_URI` (your `/auth/zoho/callback`), which sets:
-   - `zoho_access_token` (HttpOnly cookie)
-   - optionally `zoho_api_domain` (HttpOnly cookie)
-
-### B) Direct browser redirect
-
-- Navigate to **`/auth/zoho/redirect?state=dev-state`** in your browser to jump straight to Zoho (not recommended from Swagger).
-
-> Security: for production, re‑enable CSRF‐safe `state` cookie validation. The simplified dev flow treats `state` as a normal query param.
+Multi‑DC note: use the `api_domain` returned by Zoho; this demo assumes `.sa` for simplicity.
 
 ---
 
-## 7) Products API (local mirror → Zoho)
+## 6) Algolia Integration
 
-The controller extracts cookies and passes a **Zoho auth context** to the service. The service:
+### 6.1 Module & Config
 
-- Calls Zoho **/crm/v8/Products** endpoints with `Authorization: Zoho-oauthtoken <access>`
-- Mirrors the created/updated product to the local DB (stores `zohoId`)
+- `algolia.config.ts` exposes `appID`, `appName`, `writeKey`, `searchKey` via `registerAs('algolia')`.
+- `AlgoliaModule` (global) provides:
+  - `ALGOLIA_CLIENT`: v5 client from `algoliasearch(appID, writeKey)`.
+  - `ALGOLIA_INDEX_NAMES`: centralized `{ products }` index names (explicit via env or auto‑named `env_app_domain_vX`).
 
-### Endpoints
+**Why global?** Client is shared infra; each domain keeps its own mapping/indexing logic.
 
-- `POST /products` → Create in Zoho, then save locally
-- `PATCH /products/:id` → Update in Zoho (if linked), then update locally
+### 6.2 ProductsIndexer (v5)
+
+- `configure()` sets relevance & facets:
+  - `searchableAttributes`: `['name','manufacturer','sku','code','description']`
+  - `attributesForFaceting`: `['inStock','filterOnly(sku)','filterOnly(zohoId)','searchable(manufacturer)']`
+
+- `upsert(product)`: uses `saveObject({ indexName, body })` with a clean mapping (`unitPrice` numeric, derived `inStock`).
+- `remove(id)`: `deleteObject({ indexName, objectID })`
+- `search(q, page, hitsPerPage)`: `searchSingleIndex({ indexName, searchParams })`
+
+> **v5 differences:** No `initIndex`; use top‑level client methods: `setSettings({ indexSettings })`, `saveObject(s)`, `searchSingleIndex`, etc.
+
+### 6.3 Service/Controller Changes
+
+- **ProductsService**: after DB+Zoho success, calls `indexer.upsert`. On delete, calls `indexer.remove`.
+- **ProductsController**: new endpoint
+
+```
+GET /products/search?q=<text>&page=<1-based>&limit=<n>
+```
+
+**Pagination:** API is 1‑based; Algolia is 0‑based (we translate internally).
+
+**How `q` works:** free‑text across `searchableAttributes` with prefix/typo tolerance and attribute priority. Use **filters** (not `q`) for structured constraints (e.g., `inStock:true`).
+
+### 6.4 Recommended: Algolia AI Features
+
+- **NeuralSearch**: hybrid semantic + keyword. Enable in dashboard; add `mode: 'neuralSearch'` to `searchParams` or set as default.
+- **Dynamic Re‑Ranking**: boosts top results using **Insights** (click/conversion) events. Requires sending events from your UI.
+- **AI Synonyms**: dashboard suggests synonyms; you review/accept.
+- **Recommend**: related/bought‑together/trending via the Recommend API.
+
+> Start with NeuralSearch + Insights for the biggest wins with minimal code.
+
+---
+
+## 7) API Summary (Products)
+
+- `POST /products` → Create in Zoho, save locally, **index** in Algolia
+- `PATCH /products/:id` → Update in Zoho (if linked), update locally, **re‑index**
+- `DELETE /products/:id` → Delete in Zoho (if linked), remove locally, **delete from Algolia**
 - `GET /products/:id` → Read local product by UUID
 - `GET /products` → Paginated local list
-- `DELETE /products/:id` → Delete from Zoho (if linked), then remove locally
+- `GET /products/search` → **Algolia search** with `q`, `page`, `limit`
 
-### DTOs & Mapping
-
-- Local create/update DTOs: `CreateProductDTO`, `UpdateProductDTO`
-- Zoho payload DTOs: `ZohoProductRecordDto`, `ZohoProductPayloadDto`
-- Mapping (example): `name → Product_Name`, `unitPrice → Unit_Price`, `qtyInStock → Qty_in_Stock`, etc.
+**Auth cookies required** for Zoho‑touching routes: `zoho_access_token`, `zoho_api_domain`.
 
 ---
 
-## 8) Running the Demo (Quick Path)
+## 8) Testing / Sample Data
 
-1. **Fill `.env`** (Zoho + DB)
-2. **Start DB** (e.g., Postgres) and ensure the credentials match your `.env`.
-3. `npm run start:dev`
-4. Open **Swagger** → **GET `/auth/zoho`** with `state=dev-state` → copy URL → open in a new tab → approve.
-5. After callback sets cookies, call:
-   - **POST `/products`** with body:
+### 8.1 Example payloads
 
-     ```json
-     {
-       "name": "Wireless Keyboard",
-       "description": "Slim 2.4GHz wireless keyboard",
-       "unitPrice": 49.99,
-       "sku": "KB-123",
-       "qtyInStock": 100
-     }
-     ```
+See `products/test-data.json` (10 products)
 
-   - Observe created record mirrored with a `zohoId`.
+### 8.2 Example search
 
-> If you test with a REST client instead of a browser, include the cookies manually:
-> `Cookie: zoho_access_token=...; zoho_api_domain=...`
+```
+GET /products/search?q=mouse&page=1&limit=20
+```
+
+**Response highlights**
+
+- `hits`: matching products
+- `_highlightResult`: HTML‑escaped highlights for display
+- `page`, `hitsPerPage`, `nbHits`
 
 ---
 
-## 9) Troubleshooting
+## 9) Pros & Cons of Algolia (for this app)
 
-- **`invalid_redirect_uri`** → Ensure the redirect URI in the console **exactly** matches `.env` and the authorize request.
-- **Swagger shows “Failed to fetch”** on `/auth/zoho/redirect` → Use the Swagger‑friendly `GET /auth/zoho` flow.
-- **401 from Zoho** → Access token expired or missing cookie. Re‑run the OAuth step. In prod, store `refresh_token` and implement refresh.
-- **Wrong API base** → Always use the **`api_domain`** returned by Zoho (cookie `zoho_api_domain`).
-- **DB schema** → The demo sets `synchronize=true` for convenience. For prod, turn off and use migrations.
+**Pros**
+
+- Excellent default search UX: fast, typo‑tolerant, prefix matching, attribute weighting.
+- Strong faceting/filtering for “shop‑style” UIs.
+- Optional AI features (NeuralSearch, re‑ranking, Recommend) that compound value with traffic.
+- Hosted, multi‑region infra → low ops burden.
+
+**Cons**
+
+- Pricing/plan limits (records, operations, record size). Keep records lean and monitor usage.
+- Denormalization required (no joins): you must shape search‑ready docs.
+- AI features require **Insights events** for best results.
+- Vendor‑specific query model & features (lock‑in to Algolia semantics).
+- v5 API shape differs from v4, requires updated method calls.
 
 ---
 
 ## 10) Production Checklist
 
-- [ ] Use HTTPS; set cookies with `Secure`, appropriate `SameSite`.
-- [ ] Validate **CSRF state** with a server‑side cookie or signed state (JWT), not a bare query string.
-- [ ] Persist **refresh_token** per user/tenant and implement refresh on 401.
-- [ ] Handle Zoho rate limits and 429/5xx retries with backoff.
-- [ ] Replace `synchronize=true` with migrations; restrict DB credentials.
-- [ ] Add request logging and structured error handling for Zoho API failures.
-
----
+- [ ] HTTPS; cookies `Secure`, proper `SameSite`.
+- [ ] Validate **CSRF state** with a server‑side cookie/signed state.
+- [ ] Persist and rotate Zoho **refresh_token**; implement token refresh.
+- [ ] Handle Zoho rate limits (429) and transient 5xx with retries/backoff.
+- [ ] Replace `synchronize=true` with migrations; least‑privilege DB creds.
+- [ ] Algolia: protect **Write key**, only use **Search key** on client; consider **secured API keys** for per‑user filtering.
+- [ ] Emit **Insights** (click/conversion) to enable AI re‑ranking/recommendations.
+- [ ] Monitor index size/ops; trim oversized attributes, store media as URLs.

@@ -1,4 +1,3 @@
-// src/configs/zoho.config.ts
 import { registerAs } from '@nestjs/config';
 
 export interface AlgoliaConfig {

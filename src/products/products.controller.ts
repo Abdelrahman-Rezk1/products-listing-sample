@@ -1,4 +1,3 @@
-// src/products/products.controller.ts
 import {
   Body,
   Controller,
@@ -46,6 +45,55 @@ export class ProductsController {
       throw new UnauthorizedException('Zoho access token is missing.');
     const apiDomain = req.cookies?.[API_DOMAIN_COOKIE] || API_DOMAIN_FALLBACK;
     return { accessToken, apiDomain };
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Search products (Algolia)' })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    type: String,
+    description: 'Query text',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page (1-based). Default 1',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Hits per page. Default 20',
+  })
+  @ApiOkResponse({
+    description: 'Algolia results',
+    schema: {
+      example: {
+        hits: [
+          {
+            objectID: 'uuid',
+            name: 'Widget',
+            unitPrice: 49.99,
+            inStock: true,
+            manufacturer: 'Acme',
+          },
+        ],
+        nbHits: 1,
+        page: 0,
+        hitsPerPage: 20,
+      },
+    },
+  })
+  async search(
+    @Query('q') q = '',
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
+    const pageNum = Math.max(1, Number(page) || 1);
+    const hitsPerPage = Math.max(1, Math.min(1000, Number(limit) || 20));
+    return this.service.search(q, pageNum, hitsPerPage);
   }
 
   @Post()

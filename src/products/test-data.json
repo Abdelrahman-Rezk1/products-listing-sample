@@ -1,0 +1,92 @@
+[
+  {
+    "name": "Wireless Mouse",
+    "description": "Silent 2.4GHz wireless mouse with adjustable DPI",
+    "code": "MS-201",
+    "unitPrice": 24.99,
+    "manufacturer": "Logitech",
+    "sku": "SKU-002",
+    "qtyInStock": 250
+  },
+  {
+    "name": "Mechanical Keyboard",
+    "description": "Full-size mechanical keyboard with blue switches",
+    "code": "KB-124",
+    "unitPrice": 79.99,
+    "manufacturer": "Corsair",
+    "sku": "SKU-003",
+    "qtyInStock": 60
+  },
+  {
+    "name": "USB-C Hub 7-in-1",
+    "description": "HDMI, PD 100W, SD/TF, 3x USB 3.0 aluminum hub",
+    "code": "HB-310",
+    "unitPrice": 39.5,
+    "manufacturer": "Anker",
+    "sku": "SKU-004",
+    "qtyInStock": 140
+  },
+  {
+    "name": "Bluetooth Speaker",
+    "description": "Portable IPX7 waterproof speaker, 12h playback",
+    "code": "SP-550",
+    "unitPrice": 59.99,
+    "manufacturer": "JBL",
+    "sku": "SKU-005",
+    "qtyInStock": 85
+  },
+  {
+    "name": "1080p Webcam",
+    "description": "Full HD webcam with dual microphones and privacy cover",
+    "code": "CM-108",
+    "unitPrice": 44.99,
+    "manufacturer": "AverMedia",
+    "sku": "SKU-006",
+    "qtyInStock": 120
+  },
+  {
+    "name": "Gaming Headset",
+    "description": "Over-ear headset with noise-canceling mic and 7.1 surround",
+    "code": "HS-720",
+    "unitPrice": 69.0,
+    "manufacturer": "HyperX",
+    "sku": "SKU-007",
+    "qtyInStock": 75
+  },
+  {
+    "name": "Ergonomic Mouse Pad",
+    "description": "Memory-foam wrist rest, anti-slip rubber base",
+    "code": "MP-045",
+    "unitPrice": 12.99,
+    "manufacturer": "Belkin",
+    "sku": "SKU-008",
+    "qtyInStock": 500
+  },
+  {
+    "name": "Portable SSD 1TB",
+    "description": "USB 3.2 Gen 2 portable SSD, up to 1050MB/s",
+    "code": "SD-1TB",
+    "unitPrice": 99.99,
+    "manufacturer": "SanDisk",
+    "sku": "SKU-009",
+    "qtyInStock": 45
+  },
+  {
+    "name": "USB-C Charger 65W",
+    "description": "GaN fast charger with dual USB-C ports",
+    "code": "CH-065",
+    "unitPrice": 34.95,
+    "manufacturer": "UGREEN",
+    "sku": "SKU-010",
+    "qtyInStock": 200
+  },
+  {
+    "name": "Noise-Cancelling Earbuds",
+    "description": "Bluetooth ANC earbuds with wireless charging case",
+    "code": "EB-420",
+    "unitPrice": 89.99,
+    "manufacturer": "Sony",
+    "sku": "SKU-011",
+    "qtyInStock": 110
+  }
+]

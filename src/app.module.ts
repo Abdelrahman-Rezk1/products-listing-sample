@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import zohoConfig from './configs/zoho.config';
 import dbConfig from './configs/database.config';
 import { envValidationSchema } from './configs/vlidation-schema';
+import { AlgoliaModule } from './algolia/alogolia.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { envValidationSchema } from './configs/vlidation-schema';
         autoLoadEntities: true,
       }),
     }),
+    AlgoliaModule,
     AuthModule,
     OrdersModule,
     ProductsModule,

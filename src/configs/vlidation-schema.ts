@@ -15,4 +15,10 @@ export const envValidationSchema = Joi.object({
   DB_USER: Joi.string().min(1).required(),
   DB_PASSWORD: Joi.string().min(1).required(),
   DB_DATABASE: Joi.string().min(1).required(),
+
+  // Algolia
+  ALGOLIA_APP_ID: Joi.string().required().trim().min(1),
+  ALGOLIA_APP_NAME: Joi.string().required().trim().min(1),
+  ALGOLIA_SEARCH_KEY: Joi.string().required().trim().min(1),
+  ALGOLIA_WRITE_KEY: Joi.string().required().trim().min(1),
 });

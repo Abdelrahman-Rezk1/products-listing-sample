@@ -97,7 +97,7 @@ export class ProductsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new product (Zoho + local)' })
+  @ApiOperation({ summary: 'Create a new product (Zoho + local + Algolia)' })
   @ApiBody({ type: CreateProductDTO })
   @ApiCreatedResponse({ description: 'Product created.', type: Product })
   async create(@Req() req: Request, @Body() payload: CreateProductDTO) {
@@ -106,7 +106,9 @@ export class ProductsController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a product by ID (Zoho if linked + local)' })
+  @ApiOperation({
+    summary: 'Update a product by ID (Zoho if linked + local + Algolia)',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Local product UUID' })
   @ApiBody({ type: UpdateProductDTO })
   @ApiOkResponse({ description: 'Product updated.', type: UpdateResult })
@@ -155,7 +157,9 @@ export class ProductsController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete product (Zoho if linked + local)' })
+  @ApiOperation({
+    summary: 'Delete product (Zoho if linked + local + Algolia)',
+  })
   @ApiParam({ name: 'id', type: String, description: 'Local product UUID' })
   @ApiResponse({
     description: 'Product deleted successfully.',

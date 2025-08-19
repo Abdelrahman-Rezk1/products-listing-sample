@@ -1,9 +1,9 @@
-// src/products/products.service.ts
 import {
   Injectable,
   MethodNotAllowedException,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeleteResult, In, Repository, UpdateResult } from 'typeorm';
@@ -17,12 +17,15 @@ import {
   ZohoProductPayloadDto,
   ZohoProductRecordDto,
 } from './dtos/zoho-product-payload.dto';
+import { ProductsIndexer } from './products.indexer';
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
   constructor(
     @InjectRepository(Product)
     private productsRepository: Repository<Product>,
+    private readonly indexer: ProductsIndexer,
   ) {}
 
   async create(payload: CreateProductDTO, ctx: ZohoAuthCtx): Promise<Product> {
@@ -53,7 +56,16 @@ export class ProductsService {
       sku: payload.sku ?? null,
       qtyInStock: payload.qtyInStock ?? null,
     });
-    return this.productsRepository.save(product);
+    const saved = await this.productsRepository.save(product);
+
+    // ALGOLIA: upsert
+    try {
+      await this.indexer.upsert(saved);
+    } catch (e) {
+      this.logger.error(`Algolia upsert failed on create ${saved.id}: ${e}`);
+    }
+
+    return saved;
   }
 
   async read(
@@ -108,7 +120,18 @@ export class ProductsService {
     }
 
     const toSave = this.productsRepository.create({ ...existing, ...payload });
-    return this.productsRepository.update(id, toSave);
+    const result = await this.productsRepository.update(id, toSave);
+    // ALGOLIA: fetch fresh entity then upsert
+    try {
+      const fresh = await this.productsRepository.findOne({ where: { id } });
+      if (fresh) {
+        await this.indexer.upsert(fresh);
+      }
+    } catch (e) {
+      this.logger.error(`Algolia upsert failed on update ${id}: ${e}`);
+    }
+
+    return result;
   }
 
   async delete(payload: IdDTO, ctx: ZohoAuthCtx): Promise<DeleteResult> {
@@ -126,10 +149,22 @@ export class ProductsService {
         { method: 'DELETE' },
         ctx,
       );
-      // z may contain status array; optional check
     }
 
-    return this.productsRepository.delete(payload.id);
+    const res = await this.productsRepository.delete(payload.id);
+
+    // ALGOLIA: remove
+    try {
+      await this.indexer.remove(payload.id);
+    } catch (e) {
+      this.logger.error(`Algolia remove failed on delete ${payload.id}: ${e}`);
+    }
+
+    return res;
+  }
+
+  async search(query: string, hitsPerPage = 20) {
+    return this.indexer.search(query, hitsPerPage);
   }
 
   /**

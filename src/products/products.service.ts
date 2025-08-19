@@ -163,8 +163,9 @@ export class ProductsService {
     return res;
   }
 
-  async search(query: string, hitsPerPage = 20) {
-    return this.indexer.search(query, hitsPerPage);
+  async search(query: string, page = 1, hitsPerPage = 20) {
+    const algoliaPage = Math.max(0, (page || 1) - 1);
+    return this.indexer.search(query, algoliaPage, hitsPerPage);
   }
 
   /**

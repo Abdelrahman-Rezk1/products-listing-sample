@@ -42,7 +42,7 @@ export class ProductsIndexer {
       name: p.name,
       description: p.description ?? '',
       code: p.code ?? null,
-      unitPrice: p,
+      unitPrice: p.unitPrice,
       manufacturer: p.manufacturer ?? null,
       sku: p.sku ?? null,
       qtyInStock: p.qtyInStock ?? null,
@@ -65,10 +65,10 @@ export class ProductsIndexer {
     });
   }
 
-  search(query: string, hitsPerPage = 20) {
+  search(query: string, page = 0, hitsPerPage = 20) {
     return this.algolia.searchSingleIndex({
       indexName: this.names.products,
-      searchParams: { query, hitsPerPage },
+      searchParams: { query, page, hitsPerPage },
     });
   }
 }

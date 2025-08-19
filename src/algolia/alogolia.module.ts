@@ -1,4 +1,3 @@
-// src/search/algolia.module.ts
 import { Module, Global } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import algoliaConfig from '../configs/algolia.config';

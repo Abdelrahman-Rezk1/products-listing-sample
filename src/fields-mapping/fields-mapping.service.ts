@@ -89,7 +89,7 @@ function setByPath(target: PlainOutput, path: string, value: unknown): void {
 
 @Injectable()
 export class FieldsMappingService {
-  private readonly cache = new Map<string, CacheEntry>(); // key: `${entity}:${version ?? 'latest'}`
+  private readonly cache = new Map<string, CacheEntry>();
 
   constructor(
     @InjectRepository(FieldMapping)
@@ -98,7 +98,7 @@ export class FieldsMappingService {
 
   async toZoho(
     entity: MappingEntity,
-    sourceObj: unknown, // was: PlainInput
+    sourceObj: unknown,
     opts?: MapOptions,
   ): Promise<PlainOutput> {
     const { toZoho, version } = await this.load(entity, opts?.version);
@@ -115,7 +115,7 @@ export class FieldsMappingService {
 
   async toEntity(
     entity: MappingEntity,
-    externalObj: unknown, // was: PlainInput
+    externalObj: unknown,
     opts?: Pick<MapOptions, 'version'>,
   ): Promise<PlainOutput> {
     const { toEntity, version } = await this.load(entity, opts?.version);
@@ -155,8 +155,10 @@ export class FieldsMappingService {
   /** Invalidate in-memory cache for an entity/version */
   invalidate(entity: MappingEntity, version?: number): void {
     this.cache.delete(this.cacheKey(entity, version));
+
     if (version === undefined) {
-      this.cache.delete(this.cacheKey(entity, undefined)); // drop the 'latest' key too
+      // drop the 'latest' key too
+      this.cache.delete(this.cacheKey(entity, undefined));
     }
   }
 
@@ -214,7 +216,8 @@ export class FieldsMappingService {
 
     for (const row of rows) {
       if (sparse && !hasOwnByPath(input, row.source)) {
-        continue; // PATCH-style: skip fields not present on input
+        // PATCH-style: skip fields not present on input
+        continue;
       }
 
       let value: unknown = getByPath(input, row.source);

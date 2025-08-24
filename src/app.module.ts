@@ -10,7 +10,7 @@ import zohoConfig from './configs/zoho.config';
 import dbConfig from './configs/database.config';
 import { envValidationSchema } from './configs/vlidation-schema';
 import { AlgoliaModule } from './algolia/alogolia.module';
-import { FieldMappingModule } from './fields-mapping/fields-mapping.module';
+import { FieldsMappingModule } from './fields-mapping/fields-mapping.module';
 
 @Module({
   imports: [
@@ -40,7 +40,7 @@ import { FieldMappingModule } from './fields-mapping/fields-mapping.module';
     AuthModule,
     OrdersModule,
     ProductsModule,
-    FieldMappingModule,
+    FieldsMappingModule,
   ],
 })
 export class AppModule {}

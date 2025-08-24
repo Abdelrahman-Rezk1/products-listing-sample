@@ -12,15 +12,8 @@ import {
   BaseEntity,
 } from 'typeorm';
 
-@Entity({ name: 'field_mappings' })
+@Entity()
 @Index(['entity', 'version'])
-@Unique('uq_field_mapping_version_scope', [
-  'entity',
-  'version',
-  'direction',
-  'source_path',
-  'target_path',
-])
 export class FieldMapping extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

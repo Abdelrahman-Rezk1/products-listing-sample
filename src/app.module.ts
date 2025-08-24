@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService, ConfigType } from '@nestjs/config';
+import { ConfigModule, ConfigType } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 import { ProductsModule } from './products/products.module';
@@ -10,7 +10,7 @@ import zohoConfig from './configs/zoho.config';
 import dbConfig from './configs/database.config';
 import { envValidationSchema } from './configs/vlidation-schema';
 import { AlgoliaModule } from './algolia/alogolia.module';
-import { FieldMapping } from './fields-mapping/entities/fields-mapping.entity';
+import { FieldMappingModule } from './fields-mapping/fields-mapping.module';
 
 @Module({
   imports: [
@@ -40,7 +40,7 @@ import { FieldMapping } from './fields-mapping/entities/fields-mapping.entity';
     AuthModule,
     OrdersModule,
     ProductsModule,
-    FieldMapping,
+    FieldMappingModule,
   ],
 })
 export class AppModule {}
